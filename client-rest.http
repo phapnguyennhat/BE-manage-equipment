@@ -1,0 +1,64 @@
+
+### CREATE USER
+POST http://localhost:3000/auth/signup
+Content-Type: application/json
+
+{
+  "mssv": "12345",
+  "firstname": "Alex",
+  "lastname": "Sam",
+  "email": "samalec@gmail.com",
+  "username": "sam123",
+  "password": "123456",
+  "role": "admin"
+}
+
+
+
+### create equipment
+POST http://localhost:3000/equipment
+Content-Type:  application/json
+
+{
+  "title": "Cuốn sổ tay",
+  "timeBorrow": "2024-06-15",
+  "price": 39,
+  "description": "So tay test",
+  "quantity": 10,
+  "avaiQuantity": 5,
+  "urlImg": "./assets/imgs/Depot"
+}
+### CREATE FORM
+POST http://localhost:3000/form
+Content-Type: application/json
+
+{
+  "userEmail": "phapnguyen@gmail.com",
+  "status": "approved",
+  "borrowDate": "2024-06-04",
+  "equipmentBorrows":[
+    {
+      "equipmentId": 10,
+      "dlReturnDate": "2024-06-15",
+      "returnDate": "2024-06-11"
+    }
+  ]
+}
+
+###
+PUT  http://localhost:3000/form/47
+Content-Type:  application/json
+
+{
+  "borrowDate": "2024-06-15",
+  "status": "reject",
+  "equipmentBorrows" :[
+    {
+      "equipmentId": 8,
+      "dlReturnDate": "2024-06-16",
+      "returnDate": "2024-06-15"
+    }
+  ]
+}
+### approve a form by id
+PUT http://localhost:3000/form/60/approve
