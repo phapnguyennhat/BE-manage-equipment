@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ImATeapotException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateCartDTO } from 'src/dtos/create-cartItem-dto';
 import { EquipmentService } from './equipment.service';
 import { UserService } from './user.service';
@@ -38,6 +42,7 @@ export class CartItemService {
       });
       return this.repoCartItem.save(item);
     } else if (item && createCartDTO.quantity) {
+      console.log(item);
       item.quantity = createCartDTO.quantity;
       return this.repoCartItem.save(item);
     }
@@ -77,6 +82,7 @@ export class CartItemService {
       return { message: 'update successfully' };
     } catch (err) {
       console.log('ROLLBACK UPDATE');
+      console.log(err);
       throw err;
     } finally {
       await queryRunner.release();

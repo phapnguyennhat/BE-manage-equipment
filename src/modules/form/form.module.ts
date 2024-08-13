@@ -7,6 +7,7 @@ import { User } from 'src/models/user.entity';
 import { FormEquipment } from 'src/models/forms_equips.entity';
 import { Equipment } from 'src/models/equipment.entity';
 import { UserService } from 'src/services/user.service';
+import { CartItem } from 'src/models/cartItem.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Form, User, FormEquipment, Equipment])],

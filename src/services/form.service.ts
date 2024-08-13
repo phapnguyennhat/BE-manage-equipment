@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotAcceptableException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +11,7 @@ import { of, take, throwError } from 'rxjs';
 import { CreateFormDTO } from 'src/dtos/create-form-dto';
 import { UpdateFormDTO } from 'src/dtos/update-form-dto';
 import getToday from 'src/functions/getToday';
+import { CartItem } from 'src/models/cartItem.entity';
 import { Equipment } from 'src/models/equipment.entity';
 import { Form, status } from 'src/models/form.entity';
 import { role, User } from 'src/models/user.entity';
@@ -28,6 +30,7 @@ export class FormService {
     @InjectRepository(User) private repoUser: Repository<User>,
     @InjectRepository(FormEquipment)
     private repoFormEquip: Repository<FormEquipment>,
+
     @InjectRepository(Equipment) private repoEquipment: Repository<Equipment>,
     private dataSource: DataSource,
   ) {}
@@ -38,11 +41,17 @@ export class FormService {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       const newForm = this.repoForm.create(formDTO);
+
       const savedForm = await queryRunner.manager.save(Form, newForm);
       for (const equipBorrow of formDTO.formEquipments) {
         const formEquip = this.repoFormEquip.create(equipBorrow);
         formEquip.form = savedForm;
         await queryRunner.manager.save(FormEquipment, formEquip);
+
+        await queryRunner.manager.delete(CartItem, {
+          userId: formDTO.userId,
+          equipId: formEquip.equipId,
+        });
       }
       await queryRunner.commitTransaction();
       return savedForm;
@@ -82,6 +91,8 @@ export class FormService {
             id: formEquip.equipId,
           });
           if (!equip) throw new NotFoundException('Equip not found');
+          if (equip.avaiQuantity - itemEquip.quantity < 0)
+            throw new ConflictException('Vật dụng có sẵn không đủ');
           equip.avaiQuantity -= itemEquip.quantity;
           await queryRunner.manager.save(Equipment, equip);
         }
@@ -91,7 +102,9 @@ export class FormService {
       return { message: 'success' };
     } catch (error) {
       console.log('ROLLBACK TRANSACTION');
+      // console.log(error);
       await queryRunner.rollbackTransaction();
+      throw error;
     } finally {
       await queryRunner.release();
     }
@@ -125,6 +138,7 @@ export class FormService {
           formEquipments: {
             equipment: true,
           },
+          userApproved: true,
         },
       });
       return { data, count };
@@ -134,6 +148,9 @@ export class FormService {
 
       if (mssv) {
         const student = await this.repoUser.findOneBy({ mssv });
+        if (!student) {
+          return { data: [], count: 0 };
+        }
         where.userId = student.id;
       }
       const [data, count] = await this.repoForm.findAndCount({
@@ -147,6 +164,8 @@ export class FormService {
           formEquipments: {
             equipment: true,
           },
+          user: true,
+          userApproved: true,
         },
       });
       return { data, count };
@@ -158,6 +177,10 @@ export class FormService {
     try {
       await queryRunner.connect();
       await queryRunner.startTransaction();
+      const formById = await queryRunner.manager.findOneBy(Form, {
+        id: formId,
+      });
+      if (!formById) throw new NotFoundException('Form not found');
       const formEquip = await queryRunner.manager.findOneBy(FormEquipment, {
         formId,
         equipId,
@@ -170,6 +193,10 @@ export class FormService {
         id: equipId,
       });
       if (!equip) throw new NotFoundException('Equip not found');
+      if (formById.status != status.APPROVED)
+        throw new NotAcceptableException(
+          'Form chưa duyệt, không thể trả vật dụng',
+        );
       equip.avaiQuantity += formEquip.quantity;
       queryRunner.manager.save(Equipment, equip);
 
@@ -178,6 +205,7 @@ export class FormService {
     } catch (error) {
       console.log('ROLLBACK TRANSACTION');
       await queryRunner.rollbackTransaction();
+      throw error;
     } finally {
       await queryRunner.release();
     }
